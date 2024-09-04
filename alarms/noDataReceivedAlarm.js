@@ -1,4 +1,3 @@
-const cron = require("node-cron");
 const { MQTT_RT_DATA } = require("../models/mqttModel");
 const { smembersAsync } = require("../utils/redisClient");
 const Alarm_SiteFailure = require("../models/alarmModel");
@@ -16,7 +15,10 @@ async function saveAlarms(alarmData) {
       // Check if there's an existing entry for this site within the last 10 minutes
       const existingAlarm = await Alarm_SiteFailure.findOne({
         edotcoSID: alarmData.edotcoSID,
-        createdAt: { $gte: twelveMinutesAgo, $lte: now },
+        createdAt: {
+          $gte: twelveMinutesAgo.toISOString(),
+          $lte: now.toISOString(),
+        },
       });
 
       // If no entry exists, save the new alarm
@@ -29,19 +31,6 @@ async function saveAlarms(alarmData) {
           `Alarm already exists for site: ${alarmData.edotcoSID} in the last 10 minutes.`
         );
       }
-      // const existingAlarm = await Alarm_SiteFailure.findOne({
-      //   alarm_id: alarmData.alarm_id,
-      //   edotcoSID: alarmData.edotcoSID,
-      //   close_time: "NA",
-      // });
-      // console.log("existingAlarm:", existingAlarm);
-
-      // if (!existingAlarm) {
-      // newAlarm = new Alarm_SiteFailure(alarmData); // Don't redeclare it here
-      // await newAlarm.save();
-      // console.log("New alarm saved:", newAlarm);
-      // }
-      // resolve(newAlarm);
     } catch (error) {
       console.error("An error occurred while saving alarms:", error);
       reject(error);
@@ -62,7 +51,6 @@ async function closeAlarm(customid, alarm_id) {
     if (existingAlarms) {
       existingAlarms.forEach(async (alarm) => {
         alarm.close_time = new Date().toLocaleString();
-        //alarm.time_to_close = (alarm.close_time - alarm.open_time)/1000;
         await alarm.save();
         console.log("Alarm closed:", alarm);
       });
@@ -76,7 +64,6 @@ async function closeAlarm(customid, alarm_id) {
 async function getTenants() {
   try {
     const members = await smembersAsync("tenants_set");
-    // console.log("Values in tenants_set:", members);
     return members;
   } catch (error) {
     console.error("An error occurred in redis:", error);
@@ -104,6 +91,7 @@ async function getZeroCountTenants() {
 
   try {
     const members = await getTenants();
+    //const members = ["31211242C0470", "31211242C0472", "31211242C0435"];
 
     // Create the index to optimize the query
     await MQTT_RT_DATA.collection.createIndex(
@@ -233,16 +221,6 @@ async function getZeroCountEdotcoSIDs(tenantIds) {
 
     console.log(edotcoSIDs);
     return edotcoSIDs;
-
-    //return tenantSIdsArray;
-
-    // Create a map of tenantId to sId
-    // const tenantSIds = tenants.map((tenant) => ({
-    //   //tenant: tenant.tenantCode,
-    //   sId: tenant.sId,
-    // }));
-
-    // return tenantSIds;
   } catch (error) {
     console.error("Error retrieving tenants sIds:", error);
     throw new Error(`Error retrieving tenants sIds: ${error.message}`);
