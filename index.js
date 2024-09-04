@@ -7,12 +7,27 @@ const { connectDB } = require("./utils/mongoDB");
 const { dataReceived, getAlarm } = require("./alarms/noDataReceivedAlarm");
 const sequelize = require("./utils/mysqlDB");
 const { error } = require("console");
+const cors = require("cors");
 
 app.use(express.json()); // Parse JSON requests
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, "public")));
+app.use(cors());
 
-const port = 3001 || process.env.PORT;
+app.use(
+  cors({
+    origin: "https://edotcoconnect.sierra.lk", // allow this origin
+    credentials: true, // allow credentials
+  })
+);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send("Something went wrong!");
+});
+
+const port = process.env.SERVER_PORT || 3004;
 
 // Connect to MongoDB
 connectDB()

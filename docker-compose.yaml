@@ -1,0 +1,22 @@
+version: '3'
+services:
+  compere:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3001:3001"
+    volumes:
+      - .:/usr/src/app
+    networks:
+      - edotco-network
+    working_dir: /usr/src/app
+    env_file: .env
+    environment:
+      NODE_ENV: production      
+      TZ: Asia/Colombo
+
+networks:
+  edotco-network:
+    external: true
