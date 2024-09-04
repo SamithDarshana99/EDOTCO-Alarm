@@ -3,8 +3,8 @@ const mongoose = require("mongoose");
 async function connectDB() {
   try {
     const connection = await mongoose.connect(
-      //`mongodb://${process.env.MONGO_SERVER_IP}:${process.env.MONGO_SERVER_PORT}/CompereMQTT`,
-      "mongodb://127.0.0.1:27017/CompereMQTT",
+      `mongodb://${process.env.MONGO_SERVER_IP}:${process.env.MONGO_SERVER_PORT}/CompereMQTT`,
+      //"mongodb://127.0.0.1:27017/CompereMQTT",
       {
         directConnection: true,
         replicaSet: "rs0",

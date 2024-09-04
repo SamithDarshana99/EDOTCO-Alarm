@@ -4,7 +4,7 @@ require("dotenv").config();
 const cron = require("node-cron");
 const app = express();
 const { connectDB } = require("./utils/mongoDB");
-const { dataReceived, getAlarm } = require("./alarms/noDataReceivedAlarm");
+const { getAlarm } = require("./alarms/noDataReceivedAlarm");
 const sequelize = require("./utils/mysqlDB");
 const { error } = require("console");
 const cors = require("cors");
@@ -58,11 +58,11 @@ app.get("/", (req, res) => {
 
 //cron job for daily energy monitoring
 let checkDataReceived = cron.schedule(
-  "48 11 * * *",
+  "*/10 * * * *",
   () => {
     getAlarm();
     console.log(
-      "Checking data received job at every 10 minutes at Asia/Colombo timezone"
+      "Checking site failure alarm at every 10 minutes at Asia/Colombo timezone"
     );
   },
   {
