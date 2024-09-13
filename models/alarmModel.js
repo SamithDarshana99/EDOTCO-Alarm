@@ -22,13 +22,19 @@ const alarmSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    tenantCode: {
+      type: String,
+      required: true,
+    },
     priority: {
       type: String,
       required: true,
     },
     open_time: {
-      type: String,
-      default: "NA",
+      type: Date,
+      index: true,
+      // type: String,
+      // default: "NA",
     },
     alarm_duration: {
       type: String,
