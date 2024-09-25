@@ -58,11 +58,11 @@ app.get("/", (req, res) => {
 
 //cron job for daily energy monitoring
 let checkDataReceived = cron.schedule(
-  "*/10 * * * *",
+  "*/15 * * * *",
   () => {
     getAlarm();
     console.log(
-      "Checking site failure alarm at every 10 minutes at Asia/Colombo timezone"
+      "Checking site failure alarm at every 15 minutes at Asia/Colombo timezone"
     );
   },
   {
