@@ -71,7 +71,7 @@ async function closeAlarm() {
     );
     // Find all alarms with an open_time before today and close_time as "NA"
     const existingAlarms = await Alarm_SiteFailure.find({
-      open_time: { $lt: startOfFirstMinute },
+      open_time: { $gt: startOfFirstMinute },
       close_time: "NA",
     });
 
@@ -237,14 +237,18 @@ async function getZeroCountTenants() {
 
 async function closeSitesNotInEdotcoSIDs(groupedTenants) {
   try {
-    // Extract the edotcoSID values from the groupedTenants object
-    const edotcoSIDList = Object.keys(groupedTenants);
+    // Extract the tenantCodes values from the groupedTenants object
+    const tenantCodes = Object.values(groupedTenants).flatMap(
+      (tenant) => tenant.tenantCodes
+    );
+    //console.log("All Tenant Codes:", tenantCodes);
 
-    // Find all site failures that are not in the edotcoSIDList and have an open failure (close_time is "NA")
+    // Find all site failures that are not in the tenantCodes and have an open failure (close_time is "NA")
     const openFailures = await Alarm_SiteFailure.find({
-      edotcoSID: { $nin: edotcoSIDList }, // Not in the edotcoSIDs list
+      tenantCode: { $nin: tenantCodes }, // Not in the edotcoSIDs list
       close_time: "NA", // Open failures only
     });
+    console.log("open failures: ", openFailures);
 
     let now = new Date();
     let alarmCloseTime = new Date(
@@ -293,39 +297,37 @@ async function getZeroCountEdotcoSIDs(tenantIds) {
     // Find all tenants matching the tenantIds
     // const tenants = await Tenant.findAll({ where: { tenantCode: tenantIds } });
 
-    // // Create a Set to store unique sIds
+    // // // Create a Set to store unique sIds
     // const uniqueSIds = new Set();
 
-    // // Iterate over tenants to add only unique sIds to the Set
+    // // // Iterate over tenants to add only unique sIds to the Set
     // tenants.forEach((tenant) => {
     //   uniqueSIds.add(tenant.sId);
     // });
     // console.log("=========uniqueSids==== ", uniqueSIds);
-    // Convert the Set back to an array if needed
+    // // Convert the Set back to an array if needed
     // const tenantSIdsArray = Array.from(uniqueSIds);
 
     // const sites = await Site.findAll({ where: { id: tenantSIdsArray } });
 
-    // const edotcoSIDs = sites.map((site) => ({ edotcoSID: site.id }));
+    // const siteIds = sites.map((site) => ({ edotcoSID: site.id }));
 
-    // console.log(edotcoSIDs);
-    // return edotcoSIDs;
+    // console.log(siteIds);
+    //return edotcoSIDs;
     /////////////////////////////////////////////////////////////////////////////////////
 
-    // Find all tenants matching the tenantIds
-    const tenants = await Tenant.findAll({ where: { tenantCode: tenantIds } });
-    //console.log("==============tenants =========== ", tenants);
-    const groupedTenants = tenants.reduce((acc, tenant) => {
-      const { sId, tenantCode } = tenant.dataValues;
-      if (!acc[sId]) {
-        acc[sId] = [];
-      }
-      acc[sId].push(tenantCode);
-      return acc;
-    }, {});
+    // console.log("==============tenants =========== ", tenants);
+    // const groupedTenants = tenants.reduce((acc, tenant) => {
+    //   const { sId, tenantCode } = tenant.dataValues;
+    //   if (!acc[sId]) {
+    //     acc[sId] = [];
+    //   }
+    //   acc[sId].push(tenantCode);
+    //   return acc;
+    // }, {});
 
-    console.log("============tenants ====== ", groupedTenants);
-    return groupedTenants;
+    // console.log("============tenants ====== ", groupedTenants);
+    // return groupedTenants;
     // Create a Map to store the mapping of sId to tenantCodes
     // const sIdsWithTenants = new Map();
 
@@ -338,6 +340,42 @@ async function getZeroCountEdotcoSIDs(tenantIds) {
     // });
     // //console.log("=========tenantSidsMap==== ", sIdsWithTenants);
     // return sIdsWithTenants;
+
+    // Find all tenants matching the tenantIds
+    const tenants = await Tenant.findAll({ where: { tenantCode: tenantIds } });
+
+    // Extract unique sIds from the tenants
+    const uniqueSIds = [...new Set(tenants.map((tenant) => tenant.sId))];
+
+    // Find sites based on the extracted unique sIds
+    const sites = await Site.findAll({ where: { id: uniqueSIds } });
+
+    // Map the site IDs to edotcoSIDs
+    //const siteIds = sites.map((site) => ({ edotcoSID: site.edotcoSID }));
+
+    const siteIds = sites.reduce((acc, site) => {
+      acc[site.id] = site.edotcoSID;
+      return acc;
+    }, {});
+
+    //console.log("Site IDs:", siteIds);
+
+    // Group tenants by sId and map tenantCodes along with edotcoSID
+    const groupedTenants = tenants.reduce((acc, { sId, tenantCode }) => {
+      if (!acc[sId]) acc[sId] = { tenantCodes: [], edotcoSID: null };
+
+      // Add the tenantCode to the tenantCodes array for this sId
+      acc[sId].tenantCodes.push(tenantCode);
+
+      // Map sId to its corresponding edotcoSID
+      acc[sId].edotcoSID = siteIds[sId] || null; // Lookup edotcoSID for sId from siteIds
+
+      return acc;
+    }, {});
+
+    //console.log("Grouped Tenants by sId:", groupedTenants);
+
+    return groupedTenants;
   } catch (error) {
     console.error("Error retrieving tenants sIds:", error);
     throw new Error(`Error retrieving tenants sIds: ${error.message}`);
@@ -347,7 +385,8 @@ async function getZeroCountEdotcoSIDs(tenantIds) {
 async function processAlarms(groupedTenants) {
   if (groupedTenants) {
     // Iterate through each tenant group
-    for (const [edotcoSID, tenantCodes] of Object.entries(groupedTenants)) {
+    for (const [sId, tenantData] of Object.entries(groupedTenants)) {
+      const { edotcoSID, tenantCodes } = tenantData;
       // Iterate through each tenant code
       for (const tenantCode of tenantCodes) {
         console.log(
@@ -366,10 +405,12 @@ async function processAlarms(groupedTenants) {
           category: "MQTT_RT_DATA Site data",
           alarm_name: "Site data not found",
           priority: "critical",
-          edotcoSID: edotcoSID,
+          edotcoSID: sId,
+          siteID: edotcoSID,
           tenantCode: tenantCode,
           open_time: alarmOpenTime,
         };
+        console.log("Alarm data: ", alarmData);
 
         try {
           // Save the alarm data asynchronously
@@ -388,7 +429,7 @@ async function processAlarms(groupedTenants) {
 async function getAlarm() {
   const tenants = await getZeroCountTenants();
   const groupedTenants = await getZeroCountEdotcoSIDs(tenants);
-  console.log("========edotcoSids ==", groupedTenants);
+  //console.log("========edotcoSids ==", groupedTenants);
   await closeSitesNotInEdotcoSIDs(groupedTenants);
   await closeAlarm();
 

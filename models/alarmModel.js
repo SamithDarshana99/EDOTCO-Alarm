@@ -22,6 +22,10 @@ const alarmSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    siteID: {
+      type: String,
+      required: true,
+    },
     tenantCode: {
       type: String,
       required: true,
