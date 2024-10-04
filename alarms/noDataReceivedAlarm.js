@@ -71,7 +71,7 @@ async function closeAlarm() {
     );
     // Find all alarms with an open_time before today and close_time as "NA"
     const existingAlarms = await Alarm_SiteFailure.find({
-      open_time: { $gt: startOfFirstMinute },
+      open_time: { $lte: startOfFirstMinute },
       close_time: "NA",
     });
 
